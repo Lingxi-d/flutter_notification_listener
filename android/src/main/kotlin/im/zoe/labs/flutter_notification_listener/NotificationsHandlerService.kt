@@ -31,6 +31,8 @@ import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
+import java.util.logging.Logger
+import android.R.attr.data
 
 class NotificationsHandlerService: MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
@@ -178,6 +180,7 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         synchronized(sServiceStarted) {
             while (!queue.isEmpty()) sendEvent(queue.remove())
             sServiceStarted.set(true)
+            onListenerServiceStart()
         }
     }
 
@@ -211,7 +214,7 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         }
 
         // create a channel for notification
-        val channel = NotificationChannel(CHANNEL_ID, "Flutter Notifications Listener Plugin", NotificationManager.IMPORTANCE_HIGH)
+        val channel = NotificationChannel(CHANNEL_ID, "Kisstoy Notifications Listener", NotificationManager.IMPORTANCE_HIGH)
         val imageId = resources.getIdentifier("ic_launcher", "mipmap", packageName)
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
 
@@ -326,6 +329,7 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
     companion object {
 
         var callbackHandle = 0L
+        var serviceStartCallbackHandle = 0L
 
         @SuppressLint("StaticFieldLeak")
         @JvmStatic
@@ -375,6 +379,16 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         fun openPermissionSettings(context: Context): Boolean {
             context.startActivity(Intent(ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return true
+        }
+        fun hasForegroundServicePermission(context: Context): Boolean {
+
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Log.d(TAG,"API 28 以上需要此权限")
+                context.checkSelfPermission(android.Manifest.permission.FOREGROUND_SERVICE) == PackageManager.PERMISSION_GRANTED
+            } else {
+                Log.d(TAG, "API 28 以下不需要此权限")
+                true // API 28 以下不需要此权限
+            }
         }
 
         fun enableServiceSettings(context: Context) {
@@ -469,6 +483,20 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         try {
             // don't care about the method name
             mBackgroundChannel.invokeMethod("sink_event", listOf(callbackHandle, evt.data))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun onListenerServiceStart() {
+        Log.d(TAG, "listener service start callback")
+        if (serviceStartCallbackHandle == 0L) {
+            serviceStartCallbackHandle =  mContext.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+                .getLong(FlutterNotificationListenerPlugin.SERVICE_START_CALLBACK_HANDLE_KEY, 0)
+        }
+        try {
+
+            mBackgroundChannel.invokeMethod("on_service_start_handler", listOf(serviceStartCallbackHandle))
         } catch (e: Exception) {
             e.printStackTrace()
         }

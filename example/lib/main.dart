@@ -56,9 +56,15 @@ class _NotificationsLogState extends State<NotificationsLog> {
     send?.send(evt);
   }
 
+  @pragma('vm:entry-point')
+  static void _onServiceStart() {
+    print('notification service start===');
+  }
+
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
-    NotificationsListener.initialize(callbackHandle: _callback);
+    NotificationsListener.initialize(_onServiceStart,
+        callbackHandle: _callback);
 
     // this can fix restart<debug> can't handle error
     IsolateNameServer.removePortNameMapping("_listener_");
@@ -100,7 +106,7 @@ class _NotificationsLogState extends State<NotificationsLog> {
 
     if (!isRunning) {
       await NotificationsListener.startService(
-          foreground: false,
+          foreground: true,
           title: "Listener Running",
           description: "Welcome to having me");
     }

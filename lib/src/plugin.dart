@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import './event.dart';
 
 typedef EventCallbackFunc = void Function(NotificationEvent evt);
+typedef ForegroundStartCallbackFunc = void Function();
 
 /// NotificationsListener
 class NotificationsListener {
@@ -45,9 +46,13 @@ class NotificationsListener {
   static Future<void> openPermissionSettings() async {
     return await _methodChannel.invokeMethod('plugin.openPermissionSettings');
   }
+  static Future<bool?> get hasForegroundServicePermission async {
+    return await _methodChannel
+        .invokeMethod('plugin.hasForegroundServicePermission');
+  }
 
   /// Initialize the plugin and request relevant permissions from the user.
-  static Future<void> initialize({
+  static Future<void> initialize(ForegroundStartCallbackFunc foregroundStartCallback, {
     EventCallbackFunc callbackHandle = _defaultCallbackHandle,
   }) async {
     final CallbackHandle _callbackDispatch =
@@ -61,15 +66,20 @@ class NotificationsListener {
 
     // register event handler
     // register the default event handler
-    await registerEventHandle(callbackHandle);
+    await registerEventHandle(callbackHandle, foregroundStartCallback);
   }
 
   /// Register a new event handler
-  static Future<void> registerEventHandle(EventCallbackFunc callback) async {
+  static Future<void> registerEventHandle(EventCallbackFunc callback,
+      ForegroundStartCallbackFunc foregroundStartCallback) async {
     final CallbackHandle _callback =
         PluginUtilities.getCallbackHandle(callback)!;
+    final CallbackHandle _foregroundStart =
+    PluginUtilities.getCallbackHandle(foregroundStartCallback)!;
     await _methodChannel.invokeMethod(
         'plugin.registerEventHandle', _callback.toRawHandle());
+    await _methodChannel.invokeMethod(
+        'plugin.registerServiceStartHandle', _foregroundStart.toRawHandle());
   }
 
   /// check the service running or not
@@ -185,6 +195,20 @@ void callbackDispatcher({inited = true}) {
             }
 
             callback(evt);
+          }
+          break;
+        case "on_service_start_handler":
+          {
+            final List<dynamic> args = call.arguments;
+
+            final Function? callback = PluginUtilities.getCallbackFromHandle(
+                CallbackHandle.fromRawHandle(args[0]));
+
+            if (callback == null) {
+              print("callback is not register: ${args[0]}");
+              return;
+            }
+            callback();
           }
           break;
         default:

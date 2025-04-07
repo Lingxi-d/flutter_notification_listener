@@ -109,6 +109,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     const val CALLBACK_DISPATCHER_HANDLE_KEY = "callback_dispatch_handler"
     const val PROMOTE_SERVICE_ARGS_KEY = "promote_service_args"
     const val CALLBACK_HANDLE_KEY = "callback_handler"
+    const val SERVICE_START_CALLBACK_HANDLE_KEY = "service_start_callback_handler"
 
     const val FLUTTER_ENGINE_CACHE_KEY = "flutter_engine_main"
 
@@ -202,6 +203,13 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         .apply()
       return true
     }
+    fun registerServiceStartHandle(context: Context, cbId: Long): Boolean {
+      context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+        .edit()
+        .putLong(SERVICE_START_CALLBACK_HANDLE_KEY, cbId)
+        .apply()
+      return true
+    }
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -232,6 +240,15 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         registerEventHandle(mContext, cbId)
         return result.success(true)
       }
+      "plugin.registerServiceStartHandle" -> {
+        val cbId = call.arguments<Long?>()!!
+        registerServiceStartHandle(mContext, cbId)
+        return result.success(true)
+      }
+      "plugin.hasForegroundServicePermission" -> {
+        return result.success(NotificationsHandlerService.hasForegroundServicePermission(mContext))
+      }
+
       // TODO: register handle with filter
       "setFilter" -> {
         // TODO
