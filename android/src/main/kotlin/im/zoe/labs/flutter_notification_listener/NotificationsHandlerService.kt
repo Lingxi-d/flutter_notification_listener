@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
 import java.util.logging.Logger
 import android.R.attr.data
+import android.annotation.TargetApi
+import android.content.pm.ServiceInfo
 
 class NotificationsHandlerService: MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
@@ -113,7 +115,8 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
                 stopSelf()
             }
             else -> {
-
+                Log.i(TAG, "notification listener service onStartCommand")
+                startListenerService(this)
             }
         }
         return START_STICKY
@@ -229,7 +232,11 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
             .build()
 
         Log.d(TAG, "promote the service to foreground")
-        startForeground(ONGOING_NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(ONGOING_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        } else {
+            startForeground(ONGOING_NOTIFICATION_ID, notification)
+        }
 
         return true
     }
